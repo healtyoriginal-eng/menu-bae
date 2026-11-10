@@ -88,9 +88,25 @@ export function CustomerOrderView({
             .maybeSingle()
             .then(({ data }) => {
               if (data) {
-                const isVeryOld =
-                  Date.now() - new Date(data.created_at).getTime() > 3 * 3600 * 1000;
-                if (!isVeryOld) {
+                const diffMs = Date.now() - new Date(data.created_at).getTime();
+                const hoursElapsed = diffMs / (3600 * 1000);
+
+                // ATURAN KEDALUWARSA SESI MEJA OTOMATIS:
+                // 1. Jika pesanan sudah Selesai Disajikan & LUNAS, kedaluwarsa setelah 2 jam (pelanggan sudah pulang)
+                // 2. Jika belum lunas atau masih proses, kedaluwarsa maksimal 24 jam (pergantian hari)
+                const isExpired =
+                  (data.order_status === "completed" && data.payment_status === "paid" && hoursElapsed > 2) ||
+                  hoursElapsed > 24;
+
+                if (isExpired) {
+                  // Bersihkan sesi meja agar meja siap digunakan pelanggan berikutnya
+                  try {
+                    localStorage.removeItem(storageKey);
+                  } catch {
+                    // ignore
+                  }
+                  setActiveTrackingOrder(null);
+                } else {
                   setActiveTrackingOrder({
                     id: data.id,
                     order_number: data.order_number,
@@ -117,6 +133,21 @@ export function CustomerOrderView({
       }
     }
   }, [tableParam, formattedTable]);
+
+  // Fungsi untuk menutup sesi meja saat pelanggan selesai bersantap & pulang
+  function handleClearActiveOrder() {
+    if (typeof window !== "undefined") {
+      const storageKey = `menu_bae_active_order_${tableParam || "meja-01"}`;
+      try {
+        localStorage.removeItem(storageKey);
+      } catch {
+        // ignore
+      }
+    }
+    setActiveTrackingOrder(null);
+    setOrderSubmitted(false);
+    setCart([]);
+  }
 
   useEffect(() => {
     if (!restaurant?.id) return;
@@ -687,12 +718,21 @@ export function CustomerOrderView({
             </a>
           )}
 
+          {liveOrderStatus === "completed" && livePaymentStatus === "paid" && (
+            <button
+              onClick={handleClearActiveOrder}
+              className="mt-2.5 w-full rounded-xl border border-gray-300 bg-white py-2.5 text-xs font-bold text-gray-700 hover:bg-gray-50 transition shadow-2xs"
+            >
+              👋 Selesai Bersantap (Tutup Sesi Meja)
+            </button>
+          )}
+
           <button
             onClick={() => {
               setCart([]);
               setOrderSubmitted(false);
             }}
-            className="mt-3 w-full rounded-xl bg-[#E87532] py-3 text-xs font-bold text-white shadow-sm hover:bg-[#d46525] transition"
+            className="mt-2.5 w-full rounded-xl bg-[#E87532] py-3 text-xs font-bold text-white shadow-sm hover:bg-[#d46525] transition"
           >
             Pesan Menu Tambahan
           </button>
@@ -706,6 +746,7 @@ export function CustomerOrderView({
             restaurantPhone={restaurant?.phone}
             isOpen={isTrackerModalOpen}
             onClose={() => setIsTrackerModalOpen(false)}
+            onClearActiveOrder={handleClearActiveOrder}
             onOpenQris={() => {
               setIsTrackerModalOpen(false);
               setQrisOrderData({
@@ -1311,6 +1352,7 @@ export function CustomerOrderView({
           restaurantPhone={restaurant?.phone}
           isOpen={isTrackerModalOpen}
           onClose={() => setIsTrackerModalOpen(false)}
+          onClearActiveOrder={handleClearActiveOrder}
           onOpenQris={() => {
             setIsTrackerModalOpen(false);
             setQrisOrderData({

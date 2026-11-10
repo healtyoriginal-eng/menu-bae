@@ -27,6 +27,7 @@ interface CustomerOrderTrackerProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenQris?: () => void;
+  onClearActiveOrder?: () => void;
 }
 
 export function CustomerOrderTracker({
@@ -36,6 +37,7 @@ export function CustomerOrderTracker({
   isOpen,
   onClose,
   onOpenQris,
+  onClearActiveOrder,
 }: CustomerOrderTrackerProps) {
   const [activeTab, setActiveTab] = useState<"timeline" | "items">("timeline");
 
@@ -207,6 +209,19 @@ export function CustomerOrderTracker({
                         <p className="mt-1 text-xs text-emerald-800 leading-relaxed font-medium">
                           Terima kasih! Pembayaran untuk {order.table_number} telah lunas dan semua hidangan telah disajikan. Selamat menikmati hidangan Burjobae! 🙏✨
                         </p>
+                        {onClearActiveOrder && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onClearActiveOrder();
+                              onClose();
+                            }}
+                            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-400 bg-white py-2 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-50 active:scale-95 transition"
+                          >
+                            <span>👋</span>
+                            <span>Selesai Bersantap & Pulang (Tutup Sesi Meja)</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -395,12 +410,25 @@ export function CustomerOrderTracker({
           <span className="text-[11px] text-gray-400">
             Realtime KDS Tracking • {restaurantName}
           </span>
-          <button
-            onClick={onClose}
-            className="rounded-xl bg-[#171717] px-4 py-2 font-bold text-white hover:bg-gray-800 transition"
-          >
-            Tutup
-          </button>
+          <div className="flex items-center gap-2">
+            {isOrderCompleted && order.payment_status === "paid" && onClearActiveOrder && (
+              <button
+                onClick={() => {
+                  onClearActiveOrder();
+                  onClose();
+                }}
+                className="rounded-xl border border-gray-300 bg-white px-3 py-2 font-bold text-gray-700 hover:bg-gray-100 transition text-[11px]"
+              >
+                👋 Tutup Sesi
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="rounded-xl bg-[#171717] px-4 py-2 font-bold text-white hover:bg-gray-800 transition"
+            >
+              Tutup
+            </button>
+          </div>
         </div>
       </div>
     </div>
