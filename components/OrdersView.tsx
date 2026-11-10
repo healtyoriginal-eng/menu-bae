@@ -163,6 +163,14 @@ export function OrdersView({
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, payment_status: nextStatus } : o))
       );
+
+      // Broadcast update status pembayaran ke HP Pelanggan
+      const channel = supabase.channel(`restaurant-${restaurantId}`);
+      await channel.send({
+        type: "broadcast",
+        event: "order_status_updated",
+        payload: { order_id: orderId, payment_status: nextStatus },
+      });
     } catch (err) {
       console.error("Gagal update status pembayaran:", err);
     }
