@@ -1,0 +1,17 @@
+{
+  "name": "MENU BAE - Restaurant Management",
+  "short_name": "MENU BAE",
+  "description": "Sistem Menu Digital QR Code & Layar Dapur Realtime",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#E87532",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
+
