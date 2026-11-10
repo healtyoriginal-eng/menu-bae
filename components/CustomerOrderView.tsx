@@ -593,15 +593,29 @@ export function CustomerOrderView({
             </p>
             <div className="flex items-center gap-3">
               <span className="flex h-3 w-3 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-[#E87532]" />
+                {liveOrderStatus !== "completed" && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+                )}
+                <span
+                  className={`relative inline-flex rounded-full h-3 w-3 ${
+                    liveOrderStatus === "completed"
+                      ? "bg-emerald-500"
+                      : "bg-[#E87532]"
+                  }`}
+                />
               </span>
-              <span className="text-xs font-semibold text-[#E87532]">
+              <span
+                className={`text-xs font-semibold ${
+                  liveOrderStatus === "completed"
+                    ? "text-emerald-700"
+                    : "text-[#E87532]"
+                }`}
+              >
                 {liveOrderStatus === "new" && "Pesanan Diterima & Masuk Antrean Dapur"}
                 {liveOrderStatus === "accepted" && "Pesanan Dikonfirmasi Dapur 👍"}
                 {liveOrderStatus === "preparing" && "Sedang Dimasak di Dapur 🍳"}
                 {liveOrderStatus === "ready" && "Makanan Siap & Sedang Diantar ke Meja 🔔"}
-                {liveOrderStatus === "completed" && "Pesanan Selesai. Selamat Menikmati! ✨"}
+                {liveOrderStatus === "completed" && "Pesanan Selesai Disajikan. Selamat Menikmati! ✨"}
                 {liveOrderStatus === "cancelled" && "Pesanan Dibatalkan ❌"}
               </span>
             </div>
@@ -678,13 +692,25 @@ export function CustomerOrderView({
             <button
               type="button"
               onClick={() => setIsTrackerModalOpen(true)}
-              className="absolute top-3 right-4 flex items-center gap-1.5 rounded-full bg-white/95 backdrop-blur-md px-3 py-1.5 text-[11px] font-black text-[#E87532] shadow-md hover:bg-white active:scale-95 transition"
+              className={`absolute top-3 right-4 flex items-center gap-1.5 rounded-full bg-white/95 backdrop-blur-md px-3 py-1.5 text-[11px] font-black shadow-md hover:bg-white active:scale-95 transition ${
+                activeTrackingOrder.order_status === "completed"
+                  ? "text-emerald-700"
+                  : "text-[#E87532]"
+              }`}
             >
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#E87532]"></span>
+              {activeTrackingOrder.order_status !== "completed" ? (
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#E87532]"></span>
+                </span>
+              ) : (
+                <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+              )}
+              <span>
+                {activeTrackingOrder.order_status === "completed"
+                  ? "Pesanan Selesai ✨"
+                  : "Lacak Pesanan 🛵"}
               </span>
-              <span>Lacak Pesanan 🛵</span>
             </button>
           )}
         </div>
@@ -920,9 +946,18 @@ export function CustomerOrderView({
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-orange-400 bg-orange-500/10 px-3 py-1.5 rounded-xl border border-orange-500/20">
-              <span>Lacak</span>
-              <span>→</span>
+            <div
+              className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border ${
+                activeTrackingOrder.order_status === "completed"
+                  ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                  : "text-orange-400 bg-orange-500/10 border-orange-500/20"
+              }`}
+            >
+              <span>
+                {activeTrackingOrder.order_status === "completed"
+                  ? "Selesai ✓"
+                  : "Lacak →"}
+              </span>
             </div>
           </button>
         </div>

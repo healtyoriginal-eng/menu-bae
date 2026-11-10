@@ -80,6 +80,8 @@ export function CustomerOrderTracker({
     },
   ];
 
+  const isOrderCompleted = order.order_status === "completed";
+
   const currentStepIndex =
     order.order_status === "completed"
       ? 3
@@ -103,7 +105,13 @@ export function CustomerOrderTracker({
                 <h3 className="text-sm font-black tracking-tight text-white">
                   Live Tracking Pesanan
                 </h3>
-                <span className="flex h-2 w-2 rounded-full bg-emerald-300 animate-ping" />
+                {isOrderCompleted ? (
+                  <span className="rounded-full bg-emerald-500/30 border border-emerald-300/40 px-2 py-0.5 text-[10px] font-bold text-white">
+                    Selesai ✓
+                  </span>
+                ) : (
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-300 animate-ping" />
+                )}
               </div>
               <p className="text-[11px] text-orange-100 font-medium">
                 {order.table_number} • No. {order.order_number}
@@ -148,12 +156,22 @@ export function CustomerOrderTracker({
           {activeTab === "timeline" ? (
             <div className="space-y-4">
               {/* Status Banner */}
-              <div className="rounded-2xl bg-orange-50/80 p-3.5 border border-orange-200/80 flex items-center justify-between">
+              <div
+                className={`rounded-2xl p-3.5 border flex items-center justify-between transition ${
+                  isOrderCompleted
+                    ? "bg-emerald-50/90 border-emerald-200"
+                    : "bg-orange-50/80 border-orange-200/80"
+                }`}
+              >
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
                     Status Saat Ini:
                   </span>
-                  <h4 className="text-sm font-black text-[#E87532] mt-0.5">
+                  <h4
+                    className={`text-sm font-black mt-0.5 ${
+                      isOrderCompleted ? "text-emerald-700" : "text-[#E87532]"
+                    }`}
+                  >
                     {order.order_status === "new" && "Pesanan Diterima Dapur 📋"}
                     {order.order_status === "accepted" && "Dikonfirmasi Kasir ✓"}
                     {order.order_status === "preparing" && "Sedang Dimasak di Dapur 🍳"}
@@ -172,29 +190,33 @@ export function CustomerOrderTracker({
               {/* Visual Timeline Stepper */}
               <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
                 {steps.map((st, idx) => {
-                  const isPassed = idx <= currentStepIndex;
-                  const isCurrent = idx === currentStepIndex;
+                  const isPassed = isOrderCompleted ? true : idx < currentStepIndex;
+                  const isCurrent = !isOrderCompleted && idx === currentStepIndex;
 
                   return (
                     <div key={st.key} className="relative flex items-start gap-3.5">
                       {/* Step Circle Marker */}
                       <span
                         className={`absolute -left-6 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold transition ring-4 ring-white ${
-                          isCurrent
+                          isOrderCompleted
+                            ? "bg-emerald-500 text-white"
+                            : isCurrent
                             ? "bg-[#E87532] text-white shadow-md shadow-orange-500/30 scale-110"
                             : isPassed
                             ? "bg-emerald-500 text-white"
                             : "bg-gray-200 text-gray-400"
                         }`}
                       >
-                        {isPassed && !isCurrent ? "✓" : st.icon}
+                        {isOrderCompleted || isPassed ? "✓" : st.icon}
                       </span>
 
                       <div className="flex-1 pt-0.5">
                         <div className="flex items-center justify-between">
                           <p
                             className={`text-xs font-bold transition ${
-                              isCurrent
+                              isOrderCompleted
+                                ? "text-gray-900"
+                                : isCurrent
                                 ? "text-[#E87532]"
                                 : isPassed
                                 ? "text-gray-900"
@@ -203,10 +225,18 @@ export function CustomerOrderTracker({
                           >
                             {st.title}
                           </p>
+
+                          {/* Badge Status per Step */}
                           {isCurrent && (
                             <span className="flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[9px] font-black text-[#E87532]">
                               <span className="h-1.5 w-1.5 rounded-full bg-[#E87532] animate-ping" />
                               Diproses
+                            </span>
+                          )}
+
+                          {isOrderCompleted && idx === steps.length - 1 && (
+                            <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-black text-emerald-700">
+                              ✓ Selesai
                             </span>
                           )}
                         </div>
@@ -317,3 +347,4 @@ export function CustomerOrderTracker({
     </div>
   );
 }
+
