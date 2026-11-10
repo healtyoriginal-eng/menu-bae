@@ -211,6 +211,15 @@ export function OrdersView({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <a
+            href="/dapur"
+            target="_blank"
+            className="rounded-xl bg-[#E87532] px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#d46525] transition active:scale-95 flex items-center gap-1.5"
+            title="Buka Layar Dapur KDS khusus untuk tablet atau monitor dapur"
+          >
+            <span>🍳</span>
+            <span>Buka Layar Dapur (KDS)</span>
+          </a>
           <button
             onClick={() => playKitchenChimeTriple()}
             className="rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition active:scale-95"

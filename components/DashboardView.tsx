@@ -246,10 +246,11 @@ export function DashboardView({
               </div>
             </div>
             <button
-              onClick={() => onNavigate("Pesanan")}
-              className="text-xs font-semibold text-[#E87532] hover:underline"
+              onClick={() => onNavigate("Layar Dapur")}
+              className="flex items-center gap-1 text-xs font-bold text-[#E87532] hover:underline"
             >
-              Buka Layar Dapur →
+              <span>🍳</span>
+              <span>Buka Layar Dapur KDS →</span>
             </button>
           </div>
 

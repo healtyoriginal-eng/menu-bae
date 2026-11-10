@@ -9,6 +9,7 @@ import { playKitchenChimeTriple } from "@/lib/audioUtils";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { DashboardView } from "@/components/DashboardView";
+import { KitchenDisplayView } from "@/components/KitchenDisplayView";
 import { CategoriesView } from "@/components/CategoriesView";
 import { ProductsView } from "@/components/ProductsView";
 import { TablesView } from "@/components/TablesView";
@@ -247,6 +248,7 @@ export default function Home() {
               <nav className="space-y-1">
                 {[
                   { name: "Dashboard", icon: "▦" },
+                  { name: "Layar Dapur", icon: "🍳" },
                   { name: "Pesanan", icon: "▤" },
                   { name: "Kategori Menu", icon: "▧" },
                   { name: "Daftar Menu", icon: "☷" },
@@ -299,6 +301,13 @@ export default function Home() {
               categoryCount={categoryCount}
               dbConnected={dbConnected}
               onNavigate={(section) => setActive(section)}
+            />
+          )}
+
+          {active === "Layar Dapur" && (
+            <KitchenDisplayView
+              restaurantId={restaurantId}
+              restaurantName={restaurantName}
             />
           )}
 

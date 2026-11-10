@@ -9,7 +9,8 @@ interface SidebarProps {
 
 export const menuItems = [
   { name: "Dashboard", icon: "▦", desc: "Ringkasan operasional" },
-  { name: "Pesanan", icon: "▤", desc: "Aktivitas pesanan live" },
+  { name: "Layar Dapur", icon: "🍳", desc: "Kitchen Display (KDS)" },
+  { name: "Pesanan", icon: "▤", desc: "Aktivitas kasir & pesanan" },
   { name: "Kategori Menu", icon: "▧", desc: "Kategori makanan & minuman" },
   { name: "Daftar Menu", icon: "☷", desc: "Katalog produk & harga" },
   { name: "Meja", icon: "🪑", desc: "Manajemen meja & QR Code" },

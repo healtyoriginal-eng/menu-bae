@@ -621,6 +621,47 @@ export function CustomerOrderView({
             </div>
           </div>
 
+          {/* Notifikasi Pengingat Pembayaran saat Selesai */}
+          {liveOrderStatus === "completed" && (
+            livePaymentStatus === "paid" ? (
+              <div className="mt-3 rounded-2xl bg-emerald-50 border border-emerald-300 p-3.5 text-left text-xs">
+                <div className="flex items-center gap-2 font-bold text-emerald-800">
+                  <span>✅</span>
+                  <span>Pembayaran Lunas</span>
+                </div>
+                <p className="mt-1 text-[11px] text-emerald-700 leading-relaxed font-medium">
+                  Semua pesanan telah disajikan dan tagihan telah lunas. Terima kasih atas kunjungan Anda di {restaurant?.name}! 🙏✨
+                </p>
+              </div>
+            ) : (
+              <div className="mt-3 rounded-2xl bg-amber-50 border-2 border-amber-400 p-3.5 text-left text-xs animate-pulse ring-2 ring-amber-400/20">
+                <div className="flex items-center gap-2 font-black text-amber-950">
+                  <span>⚠️</span>
+                  <span>PENGINGAT: BELUM DIBAYAR</span>
+                </div>
+                <p className="mt-1 text-[11px] text-amber-900 font-medium leading-relaxed">
+                  Pesanan telah selesai disajikan di {formattedTable}. Mohon selesaikan pembayaran tagihan sebesar{" "}
+                  <strong className="font-black text-amber-950 underline">{formatRupiah(cartTotalPrice)}</strong>{" "}
+                  di kasir (Tunai / QRIS) atau bayar via QRIS otomatis.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQrisOrderData({
+                      id: submittedOrderId,
+                      order_number: submittedOrderId,
+                      total: cartTotalPrice,
+                    });
+                  }}
+                  className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 py-2.5 text-xs font-black text-white shadow-md hover:from-orange-600 hover:to-amber-600 transition"
+                >
+                  <span>📱</span>
+                  <span>Bayar Sekarang via QRIS ({formatRupiah(cartTotalPrice)})</span>
+                </button>
+              </div>
+            )
+          )}
+
           {/* Tombol Buka Live Tracking Pesanan */}
           <button
             type="button"
@@ -941,7 +982,11 @@ export function CustomerOrderView({
                   {activeTrackingOrder.order_status === "accepted" && "Pesanan Dikonfirmasi"}
                   {activeTrackingOrder.order_status === "preparing" && "Sedang Dimasak 🍳"}
                   {activeTrackingOrder.order_status === "ready" && "Makanan Siap & Diantar 🔔"}
-                  {activeTrackingOrder.order_status === "completed" && "Pesanan Selesai ✨"}
+                  {activeTrackingOrder.order_status === "completed" && (
+                    activeTrackingOrder.payment_status === "paid"
+                      ? "Pesanan Selesai • Lunas ✨"
+                      : "Pesanan Selesai • Belum Bayar ⚠️"
+                  )}
                   {activeTrackingOrder.order_status === "cancelled" && "Pesanan Dibatalkan"}
                 </p>
               </div>
@@ -949,13 +994,17 @@ export function CustomerOrderView({
             <div
               className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border ${
                 activeTrackingOrder.order_status === "completed"
-                  ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                  ? activeTrackingOrder.payment_status === "paid"
+                    ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                    : "text-amber-300 bg-amber-500/20 border-amber-400/40 animate-pulse"
                   : "text-orange-400 bg-orange-500/10 border-orange-500/20"
               }`}
             >
               <span>
                 {activeTrackingOrder.order_status === "completed"
-                  ? "Selesai ✓"
+                  ? activeTrackingOrder.payment_status === "paid"
+                    ? "Lunas ✓"
+                    : "Bayar ⚠️"
                   : "Lacak →"}
               </span>
             </div>

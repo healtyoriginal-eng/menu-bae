@@ -187,6 +187,65 @@ export function CustomerOrderTracker({
                 </div>
               </div>
 
+              {/* Notifikasi Pengingat Pembayaran saat Pesanan Selesai */}
+              {isOrderCompleted && (
+                order.payment_status === "paid" ? (
+                  <div className="rounded-2xl bg-emerald-50 border-2 border-emerald-500/40 p-4 shadow-sm animate-in fade-in duration-300">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 text-white text-xl shadow-xs">
+                        ✓
+                      </span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wide">
+                            Pembayaran Lunas
+                          </h4>
+                          <span className="rounded-full bg-emerald-200/90 px-2 py-0.5 text-[9px] font-black text-emerald-800">
+                            ✓ Lunas
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-emerald-800 leading-relaxed font-medium">
+                          Terima kasih! Pembayaran untuk {order.table_number} telah lunas dan semua hidangan telah disajikan. Selamat menikmati hidangan Burjobae! 🙏✨
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl bg-amber-50 border-2 border-amber-400 p-4 shadow-md animate-in fade-in duration-300 ring-2 ring-amber-400/20">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500 text-white text-xl shadow-xs">
+                        ⚠️
+                      </span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-black text-amber-950 uppercase tracking-wide">
+                            Pengingat: Belum Dibayar
+                          </h4>
+                          <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[9px] font-black text-amber-900">
+                            Belum Bayar
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-amber-900 leading-relaxed font-medium">
+                          Semua makanan sudah selesai disajikan di meja Anda. Mohon selesaikan pembayaran tagihan sebesar{" "}
+                          <strong className="font-black text-amber-950 underline">{formatRupiah(order.total)}</strong>{" "}
+                          di kasir (Tunai / QRIS) atau bayar langsung secara online via QRIS di bawah ini.
+                        </p>
+                        {onOpenQris && (
+                          <button
+                            type="button"
+                            onClick={onOpenQris}
+                            className="mt-3 flex items-center justify-center gap-2 w-full rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 py-2.5 text-xs font-black text-white shadow-md hover:from-orange-600 hover:to-amber-600 transition active:scale-[0.99]"
+                          >
+                            <span>📱</span>
+                            <span>Bayar Sekarang via QRIS ({formatRupiah(order.total)})</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              )}
+
               {/* Visual Timeline Stepper */}
               <div className="relative pl-6 space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
                 {steps.map((st, idx) => {
