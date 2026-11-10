@@ -28,6 +28,20 @@ export function DashboardView({
   const [todayOmzet, setTodayOmzet] = useState<number>(0);
   const [todayOrderCount, setTodayOrderCount] = useState<number>(0);
 
+  interface ActiveOrderSummary {
+    id: string;
+    order_number: string;
+    customer_name: string;
+    table_number: string;
+    total: number;
+    order_status: string;
+    payment_status: string;
+    created_at: string;
+    items?: Array<{ product_name: string; quantity: number }>;
+  }
+
+  const [activeOrders, setActiveOrders] = useState<ActiveOrderSummary[]>([]);
+
   const formatRupiah = (val: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -44,6 +58,7 @@ export function DashboardView({
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
+        // 1. Fetch Today stats (omzet & count)
         const { data, error } = await supabase
           .from("orders")
           .select("total, payment_status, order_status")
@@ -59,6 +74,30 @@ export function DashboardView({
             .reduce((sum, o) => sum + (Number(o.total) || 0), 0);
           setTodayOmzet(omzet);
         }
+
+        // 2. Fetch Active Orders untuk widget realtime
+        const { data: activeData } = await supabase
+          .from("orders")
+          .select("id, order_number, customer_name, notes, total, order_status, payment_status, created_at, items:order_items(product_name, quantity)")
+          .eq("restaurant_id", restaurantId)
+          .in("order_status", ["new", "accepted", "preparing", "ready"])
+          .order("created_at", { ascending: false });
+
+        if (isMounted && activeData) {
+          setActiveOrders(
+            activeData.map((o) => ({
+              id: o.id,
+              order_number: o.order_number,
+              customer_name: o.customer_name || "Pelanggan",
+              table_number: o.notes || "Meja",
+              total: o.total,
+              order_status: o.order_status,
+              payment_status: o.payment_status,
+              created_at: o.created_at,
+              items: o.items as Array<{ product_name: string; quantity: number }>,
+            }))
+          );
+        }
       } catch (err) {
         console.error("Error fetching dashboard stats:", err);
       }
@@ -66,8 +105,20 @@ export function DashboardView({
 
     fetchStats();
 
+    // Subscribe Realtime channel untuk update instan di dashboard
+    const channel = supabase
+      .channel(`restaurant-${restaurantId}-dashboard`)
+      .on("broadcast", { event: "new_order" }, () => {
+        fetchStats();
+      })
+      .on("broadcast", { event: "order_status_updated" }, () => {
+        fetchStats();
+      })
+      .subscribe();
+
     return () => {
       isMounted = false;
+      supabase.removeChannel(channel);
     };
   }, [restaurantId]);
 
@@ -181,9 +232,18 @@ export function DashboardView({
         {/* Aktivitas Pesanan */}
         <div className="rounded-2xl border border-gray-200 bg-white p-6 xl:col-span-2">
           <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-            <div>
-              <h3 className="text-base font-bold text-gray-900">Aktivitas Pesanan Realtime</h3>
-              <p className="text-xs text-gray-400">Pesanan dari pelanggan via scan QR meja</p>
+            <div className="flex items-center gap-2.5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-gray-900">Aktivitas Pesanan Realtime</h3>
+                  {activeOrders.length > 0 && (
+                    <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-[11px] font-black text-[#E87532]">
+                      {activeOrders.length} Aktif
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400">Pesanan dari pelanggan via scan QR meja</p>
+              </div>
             </div>
             <button
               onClick={() => onNavigate("Pesanan")}
@@ -193,13 +253,70 @@ export function DashboardView({
             </button>
           </div>
 
-          <div className="flex min-h-60 flex-col items-center justify-center text-center p-8">
-            <span className="text-5xl">🧾</span>
-            <p className="mt-4 font-bold text-gray-800">Belum ada pesanan aktif</p>
-            <p className="mt-1 text-xs text-gray-400 max-w-sm">
-              Ketika pelanggan melakukan scan QR di meja dan memesan makanan, pesanan akan langsung muncul secara realtime di sini.
-            </p>
-          </div>
+          {activeOrders.length === 0 ? (
+            <div className="flex min-h-60 flex-col items-center justify-center text-center p-8">
+              <span className="text-5xl">🧾</span>
+              <p className="mt-4 font-bold text-gray-800">Belum ada pesanan aktif</p>
+              <p className="mt-1 text-xs text-gray-400 max-w-sm">
+                Ketika pelanggan melakukan scan QR di meja dan memesan makanan, pesanan akan langsung muncul secara realtime di sini.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-4 space-y-2.5">
+              {activeOrders.map((ord) => (
+                <div
+                  key={ord.id}
+                  onClick={() => onNavigate("Pesanan")}
+                  className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50/50 p-4 transition hover:border-[#E87532]/60 hover:bg-orange-50/40 cursor-pointer shadow-2xs group"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-xs font-black text-[#E87532]">
+                      {ord.table_number.replace(/Meja\s*/i, "M-")}
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-bold text-gray-900 group-hover:text-[#E87532] transition">
+                          {ord.customer_name}
+                        </p>
+                        <span className="font-mono text-[10px] text-gray-400">
+                          {ord.order_number}
+                        </span>
+                        <span className="text-[10px] text-gray-400">• {ord.table_number}</span>
+                      </div>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        {ord.items && ord.items.length > 0
+                          ? ord.items.map((it) => `${it.quantity}x ${it.product_name}`).join(", ")
+                          : "Memproses menu..."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-sm font-black text-gray-900">
+                      {formatRupiah(ord.total)}
+                    </p>
+                    <div className="flex items-center justify-end gap-1.5 mt-1">
+                      <span
+                        className={`rounded px-1.5 py-0.2 text-[9px] font-bold ${
+                          ord.payment_status === "paid"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-amber-100 text-amber-800"
+                        }`}
+                      >
+                        {ord.payment_status === "paid" ? "✓ Lunas" : "Belum Bayar"}
+                      </span>
+                      <span className="rounded bg-orange-100 px-1.5 py-0.2 text-[9px] font-bold text-[#E87532]">
+                        {ord.order_status === "new" && "Baru 🔔"}
+                        {ord.order_status === "accepted" && "Diterima"}
+                        {ord.order_status === "preparing" && "Dimasak 🍳"}
+                        {ord.order_status === "ready" && "Siap Antar 🚀"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Informasi Restoran & Status Sistem */}
