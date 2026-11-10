@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Product, Category, Restaurant, getRestaurantPaymentInfo } from "@/lib/types";
 import { DynamicQrisPaymentModal } from "@/components/DynamicQrisPaymentModal";
+import { CustomerOrderTracker, ActiveOrderTrackingData } from "@/components/CustomerOrderTracker";
 
 interface CustomerOrderViewProps {
   restaurantSlug: string;
@@ -60,11 +61,62 @@ export function CustomerOrderView({
   const [liveOrderStatus, setLiveOrderStatus] = useState<string>("new");
   const [livePaymentStatus, setLivePaymentStatus] = useState<string>("unpaid");
   const [submittingOrder, setSubmittingOrder] = useState<boolean>(false);
+  const [activeTrackingOrder, setActiveTrackingOrder] =
+    useState<ActiveOrderTrackingData | null>(null);
+  const [isTrackerModalOpen, setIsTrackerModalOpen] = useState(false);
   const [qrisOrderData, setQrisOrderData] = useState<{
     id: string;
     order_number: string;
     total: number;
   } | null>(null);
+
+  // Load saved active order for this table from localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storageKey = `menu_bae_active_order_${tableParam || "meja-01"}`;
+    const raw = localStorage.getItem(storageKey);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.id) {
+          supabase
+            .from("orders")
+            .select(
+              "id, order_number, customer_name, notes, total, payment_method, payment_status, order_status, created_at, items:order_items(product_name, quantity, unit_price, notes)"
+            )
+            .eq("id", parsed.id)
+            .maybeSingle()
+            .then(({ data }) => {
+              if (data) {
+                const isVeryOld =
+                  Date.now() - new Date(data.created_at).getTime() > 3 * 3600 * 1000;
+                if (!isVeryOld) {
+                  setActiveTrackingOrder({
+                    id: data.id,
+                    order_number: data.order_number,
+                    customer_name: data.customer_name || "Pelanggan",
+                    table_number: data.notes || formattedTable,
+                    total: data.total,
+                    payment_method: data.payment_method,
+                    payment_status: data.payment_status,
+                    order_status: data.order_status,
+                    created_at: data.created_at,
+                    items: data.items as Array<{
+                      product_name: string;
+                      quantity: number;
+                      unit_price?: number;
+                      notes?: string | null;
+                    }>,
+                  });
+                }
+              }
+            });
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [tableParam, formattedTable]);
 
   useEffect(() => {
     if (!restaurant?.id) return;
@@ -74,9 +126,23 @@ export function CustomerOrderView({
       .on("broadcast", { event: "order_status_updated" }, (payload) => {
         if (payload.payload?.status) {
           setLiveOrderStatus(payload.payload.status);
+          setActiveTrackingOrder((prev) =>
+            prev &&
+            (prev.id === payload.payload.order_id ||
+              prev.order_number === payload.payload.order_number)
+              ? { ...prev, order_status: payload.payload.status }
+              : prev
+          );
         }
         if (payload.payload?.payment_status) {
           setLivePaymentStatus(payload.payload.payment_status);
+          setActiveTrackingOrder((prev) =>
+            prev &&
+            (prev.id === payload.payload.order_id ||
+              prev.order_number === payload.payload.order_number)
+              ? { ...prev, payment_status: payload.payload.payment_status }
+              : prev
+          );
         }
       })
       .subscribe();
@@ -315,6 +381,35 @@ export function CustomerOrderView({
       setLiveOrderStatus("new");
       setLivePaymentStatus("unpaid");
 
+      const trackingData: ActiveOrderTrackingData = {
+        id: ord?.id || orderNumber,
+        order_number: orderNumber,
+        customer_name: customerName.trim() || "Pelanggan Meja",
+        table_number: formattedTable,
+        total: cartTotalPrice,
+        payment_method: paymentMethod === "online" ? "online" : "cash",
+        payment_status: "unpaid",
+        order_status: "new",
+        created_at: new Date().toISOString(),
+        items: cart.map((it) => ({
+          product_name: it.product.name,
+          quantity: it.quantity,
+          unit_price: it.product.price,
+          notes: it.notes,
+        })),
+      };
+      setActiveTrackingOrder(trackingData);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(
+            `menu_bae_active_order_${tableParam || "meja-01"}`,
+            JSON.stringify(trackingData)
+          );
+        } catch {
+          // ignore
+        }
+      }
+
       if (paymentMethod === "online") {
         setQrisOrderData({
           id: ord?.id || orderNumber,
@@ -330,6 +425,34 @@ export function CustomerOrderView({
       console.error("Error confirm order:", err);
       setSubmittedOrderId(orderNumber);
       setLiveOrderStatus("new");
+      const fallbackData: ActiveOrderTrackingData = {
+        id: orderNumber,
+        order_number: orderNumber,
+        customer_name: customerName.trim() || "Pelanggan Meja",
+        table_number: formattedTable,
+        total: cartTotalPrice,
+        payment_method: paymentMethod === "online" ? "online" : "cash",
+        payment_status: "unpaid",
+        order_status: "new",
+        created_at: new Date().toISOString(),
+        items: cart.map((it) => ({
+          product_name: it.product.name,
+          quantity: it.quantity,
+          unit_price: it.product.price,
+          notes: it.notes,
+        })),
+      };
+      setActiveTrackingOrder(fallbackData);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(
+            `menu_bae_active_order_${tableParam || "meja-01"}`,
+            JSON.stringify(fallbackData)
+          );
+        } catch {
+          // ignore
+        }
+      }
       setOrderSubmitted(true);
       setIsCartOpen(false);
     } finally {
@@ -475,12 +598,24 @@ export function CustomerOrderView({
               </span>
               <span className="text-xs font-semibold text-[#E87532]">
                 {liveOrderStatus === "new" && "Pesanan Diterima & Masuk Antrean Dapur"}
+                {liveOrderStatus === "accepted" && "Pesanan Dikonfirmasi Dapur 👍"}
                 {liveOrderStatus === "preparing" && "Sedang Dimasak di Dapur 🍳"}
                 {liveOrderStatus === "ready" && "Makanan Siap & Sedang Diantar ke Meja 🔔"}
                 {liveOrderStatus === "completed" && "Pesanan Selesai. Selamat Menikmati! ✨"}
+                {liveOrderStatus === "cancelled" && "Pesanan Dibatalkan ❌"}
               </span>
             </div>
           </div>
+
+          {/* Tombol Buka Live Tracking Pesanan */}
+          <button
+            type="button"
+            onClick={() => setIsTrackerModalOpen(true)}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-orange-500 to-amber-500 py-3.5 text-xs font-black text-white shadow-md hover:from-orange-600 hover:to-amber-600 transition active:scale-[0.99]"
+          >
+            <span className="text-base">🛵</span>
+            <span>Buka Live Tracking Pesanan Lengkap</span>
+          </button>
 
           {/* Tombol WhatsApp Kasir */}
           {restaurant?.phone && (
@@ -507,6 +642,25 @@ export function CustomerOrderView({
             Pesan Menu Tambahan
           </button>
         </div>
+
+        {/* Modal Live Order Tracker (jika dibuka dari layar sukses) */}
+        {activeTrackingOrder && (
+          <CustomerOrderTracker
+            order={activeTrackingOrder}
+            restaurantName={restaurant?.name || "Burjobae"}
+            restaurantPhone={restaurant?.phone}
+            isOpen={isTrackerModalOpen}
+            onClose={() => setIsTrackerModalOpen(false)}
+            onOpenQris={() => {
+              setIsTrackerModalOpen(false);
+              setQrisOrderData({
+                id: activeTrackingOrder.id,
+                order_number: activeTrackingOrder.order_number,
+                total: activeTrackingOrder.total,
+              });
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -520,6 +674,19 @@ export function CustomerOrderView({
           <div className="absolute top-3 left-4 rounded-full bg-black/30 backdrop-blur-md px-3 py-1 text-[11px] font-bold text-white">
             📍 {formattedTable}
           </div>
+          {activeTrackingOrder && (
+            <button
+              type="button"
+              onClick={() => setIsTrackerModalOpen(true)}
+              className="absolute top-3 right-4 flex items-center gap-1.5 rounded-full bg-white/95 backdrop-blur-md px-3 py-1.5 text-[11px] font-black text-[#E87532] shadow-md hover:bg-white active:scale-95 transition"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#E87532]"></span>
+              </span>
+              <span>Lacak Pesanan 🛵</span>
+            </button>
+          )}
         </div>
 
         <div className="px-5 pt-3 pb-4">
@@ -714,6 +881,47 @@ export function CustomerOrderView({
             </div>
             <div className="flex items-center gap-1 text-xs font-bold text-[#E87532]">
               <span>Lihat Pesanan</span>
+              <span>→</span>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* Floating Tracking Bar (Saat Keranjang Kosong tapi Ada Pesanan Aktif) */}
+      {cart.length === 0 && activeTrackingOrder && (
+        <div className="fixed bottom-4 left-4 right-4 z-40 max-w-md mx-auto">
+          <button
+            onClick={() => setIsTrackerModalOpen(true)}
+            className="flex w-full items-center justify-between rounded-2xl bg-[#171717]/95 backdrop-blur-md border border-orange-500/30 px-5 py-3.5 text-white shadow-xl shadow-black/25 active:scale-[0.99] transition"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-tr from-orange-500 to-amber-500 text-lg shadow-sm">
+                {activeTrackingOrder.order_status === "new" && "📋"}
+                {activeTrackingOrder.order_status === "accepted" && "👍"}
+                {activeTrackingOrder.order_status === "preparing" && "🍳"}
+                {activeTrackingOrder.order_status === "ready" && "🔔"}
+                {activeTrackingOrder.order_status === "completed" && "✨"}
+                {activeTrackingOrder.order_status === "cancelled" && "❌"}
+              </span>
+              <div className="text-left">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-orange-400">
+                    {activeTrackingOrder.order_number}
+                  </span>
+                  <span className="text-[10px] text-gray-400">• {activeTrackingOrder.table_number}</span>
+                </div>
+                <p className="text-xs font-black text-gray-100">
+                  {activeTrackingOrder.order_status === "new" && "Pesanan Diterima Dapur"}
+                  {activeTrackingOrder.order_status === "accepted" && "Pesanan Dikonfirmasi"}
+                  {activeTrackingOrder.order_status === "preparing" && "Sedang Dimasak 🍳"}
+                  {activeTrackingOrder.order_status === "ready" && "Makanan Siap & Diantar 🔔"}
+                  {activeTrackingOrder.order_status === "completed" && "Pesanan Selesai ✨"}
+                  {activeTrackingOrder.order_status === "cancelled" && "Pesanan Dibatalkan"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-orange-400 bg-orange-500/10 px-3 py-1.5 rounded-xl border border-orange-500/20">
+              <span>Lacak</span>
               <span>→</span>
             </div>
           </button>
@@ -987,12 +1195,45 @@ export function CustomerOrderView({
           bankAccountHolder={getRestaurantPaymentInfo(restaurant).accountHolder}
           onPaymentSuccess={() => {
             setLivePaymentStatus("paid");
+            setActiveTrackingOrder((prev) =>
+              prev ? { ...prev, payment_status: "paid" } : prev
+            );
+            if (typeof window !== "undefined") {
+              const storageKey = `menu_bae_active_order_${tableParam || "meja-01"}`;
+              try {
+                const raw = localStorage.getItem(storageKey);
+                if (raw) {
+                  const parsed = JSON.parse(raw);
+                  parsed.payment_status = "paid";
+                  localStorage.setItem(storageKey, JSON.stringify(parsed));
+                }
+              } catch {}
+            }
             setQrisOrderData(null);
             setOrderSubmitted(true);
           }}
           onClose={() => {
             setQrisOrderData(null);
             setOrderSubmitted(true);
+          }}
+        />
+      )}
+
+      {/* Modal Live Order Tracker (jika dibuka dari menu utama) */}
+      {activeTrackingOrder && (
+        <CustomerOrderTracker
+          order={activeTrackingOrder}
+          restaurantName={restaurant?.name || "Burjobae"}
+          restaurantPhone={restaurant?.phone}
+          isOpen={isTrackerModalOpen}
+          onClose={() => setIsTrackerModalOpen(false)}
+          onOpenQris={() => {
+            setIsTrackerModalOpen(false);
+            setQrisOrderData({
+              id: activeTrackingOrder.id,
+              order_number: activeTrackingOrder.order_number,
+              total: activeTrackingOrder.total,
+            });
           }}
         />
       )}
